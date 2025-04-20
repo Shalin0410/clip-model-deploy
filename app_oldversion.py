@@ -7,27 +7,16 @@ import base64
 import torch
 import numpy as np
 from pymongo import MongoClient
-from transformers import AutoProcessor, Blip2ForConditionalGeneration
+from transformers import BlipProcessor, BlipForConditionalGeneration
 import spacy
 import ollama
 
 # ----------------- Load Models -----------------
 nlp = spacy.load("en_core_web_sm")
-processor = AutoProcessor.from_pretrained("Salesforce/blip2-opt-2.7b")
+processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
-# Use float16 only if CUDA is available
-if device == "cuda":
-    model = Blip2ForConditionalGeneration.from_pretrained(
-        "Salesforce/blip2-opt-2.7b", torch_dtype=torch.float16
-    )
-else:
-    model = Blip2ForConditionalGeneration.from_pretrained(
-        "Salesforce/blip2-opt-2.7b"
-    )
-
 model.to(device)
-print(f"Using device: {device}")
 
 valid_moods = ["happy", "sad", "angry", "neutral", "surprised", "confused", "excited", "calm"]
 
@@ -45,7 +34,6 @@ def base64_to_image(base64_str):
     return Image.open(BytesIO(image_data)).convert('RGB')
 
 def infer_mood_from_color(image):
-    print("Inferring mood from color...")
     image_rgb = image.convert("RGB")
     image_np = np.array(image_rgb)
     r, g, b = np.mean(image_np, axis=(0, 1))
@@ -59,33 +47,26 @@ def infer_mood_from_color(image):
         return "neutral"
 
 def generate_caption_from_pil(image):
-    #inputs = processor(image, return_tensors="pt").to(device, torch.float16)
-    inputs = processor(image, return_tensors="pt")
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    if device == "cuda":
-        inputs = {k: v.half() for k, v in inputs.items()}
-    out = model.generate(**inputs, max_new_tokens=5)
-    caption = processor.batch_decode(out, skip_special_tokens=True)[0].strip()
-    print(f"Generated caption: {caption}")
+    inputs = processor(image, return_tensors="pt").to(device)
+    out = model.generate(**inputs)
+    caption = processor.decode(out[0], skip_special_tokens=True)
     return caption
 
 def detect_mood_from_caption(caption, image):
     prompt = f"""
     You are a mood detection model. Based on the following caption, classify the mood of the image.
     Caption: "{caption}"
-    Your output should only be one to two words.
+    Your output should only be one of these moods: {', '.join(valid_moods)}.
     """
-    
     try:
         response = ollama.chat(model="llama3:latest", messages=[{"role": "user", "content": prompt}])
-        mood_text = response.message.content.strip().lower()
-        print(f"Response from model: {mood_text}")
-        if len(mood_text.split()) > 2 or not mood_text.isalpha():
-            return infer_mood_from_color(image)
-        return mood_text
-    except:
-        print("Error in mood detection model, falling back to color analysis.")
+        mood_text = response.message.content.strip()
+        for mood in valid_moods:
+            if mood.lower() in mood_text.lower():
+                return mood
         return infer_mood_from_color(image)
+    except:
+        return "neutral"
 
 # ----------------- API Route -----------------
 class ImageRequest(BaseModel):
