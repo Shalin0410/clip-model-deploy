@@ -106,5 +106,5 @@ def analyze_image(req: ImageRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))  # GCR injects PORT=8080
+    port = int(os.environ.get("PORT", 8001))  # GCR injects PORT=8080
     uvicorn.run("app_small:app", host="0.0.0.0", port=port)
