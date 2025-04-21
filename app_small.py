@@ -68,7 +68,8 @@ def detect_mood_from_caption(caption, image):
         response = ollama.chat(model="llama3:latest", messages=[{"role": "user", "content": prompt}])
         mood_text = response.message.content.strip().lower()
         print(f"Response from model: {mood_text}")
-        if len(mood_text.split()) >= 2 or not mood_text.isalpha():
+        print("Length of mood text:", len(mood_text.split()))
+        if len(mood_text.split()) > 2 or not mood_text.isalpha():
             return infer_mood_from_color(image)
         return mood_text
     except Exception as e:
