@@ -3,6 +3,7 @@ FROM python:3.10
 WORKDIR /app
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV INSIDE_DOCKER=true
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -20,6 +21,7 @@ RUN pip install -r requirements.txt
 RUN python -m spacy download en_core_web_sm
 
 COPY . .
+COPY ./models ./models
 
 EXPOSE 8080
 

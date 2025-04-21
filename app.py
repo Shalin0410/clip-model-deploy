@@ -10,21 +10,19 @@ from pymongo import MongoClient
 from transformers import AutoProcessor, Blip2ForConditionalGeneration
 import spacy
 import ollama
+import os
 
 # ----------------- Load Models -----------------
 nlp = spacy.load("en_core_web_sm")
-processor = AutoProcessor.from_pretrained("Salesforce/blip2-opt-2.7b")
+LOCAL_MODEL_PATH = "./models/blip2-opt-2.7b"
+processor = AutoProcessor.from_pretrained(LOCAL_MODEL_PATH)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Use float16 only if CUDA is available
 if device == "cuda":
-    model = Blip2ForConditionalGeneration.from_pretrained(
-        "Salesforce/blip2-opt-2.7b", torch_dtype=torch.float16
-    )
+    model = Blip2ForConditionalGeneration.from_pretrained(LOCAL_MODEL_PATH, torch_dtype=torch.float16)
 else:
-    model = Blip2ForConditionalGeneration.from_pretrained(
-        "Salesforce/blip2-opt-2.7b"
-    )
+    model = Blip2ForConditionalGeneration.from_pretrained(LOCAL_MODEL_PATH)
 
 model.to(device)
 print(f"Using device: {device}")
@@ -64,7 +62,7 @@ def generate_caption_from_pil(image):
     inputs = {k: v.to(device) for k, v in inputs.items()}
     if device == "cuda":
         inputs = {k: v.half() for k, v in inputs.items()}
-    out = model.generate(**inputs, max_new_tokens=5)
+    out = model.generate(**inputs, max_new_tokens=10)
     caption = processor.batch_decode(out, skip_special_tokens=True)[0].strip()
     print(f"Generated caption: {caption}")
     return caption
@@ -83,9 +81,10 @@ def detect_mood_from_caption(caption, image):
         if len(mood_text.split()) > 2 or not mood_text.isalpha():
             return infer_mood_from_color(image)
         return mood_text
-    except:
+    except Exception as e:
+        print(f"Error in mood detection model: {e}")
         print("Error in mood detection model, falling back to color analysis.")
-        return infer_mood_from_color(image)
+        return 'neutral'
 
 # ----------------- API Route -----------------
 class ImageRequest(BaseModel):
@@ -114,3 +113,12 @@ def analyze_image(req: ImageRequest):
         return {"caption": caption, "mood": mood}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    if os.getenv("DOCKER_ENV") or os.getenv("INSIDE_DOCKER"):
+        ollama.set_base_url("http://host.docker.internal:11434")
+    else:
+        ollama.set_base_url("http://localhost:11434")
+    port = int(os.environ.get("PORT", 8080))  # GCR injects PORT=8080
+    uvicorn.run("app:app", host="0.0.0.0", port=port)

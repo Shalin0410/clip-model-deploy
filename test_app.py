@@ -7,7 +7,7 @@ def encode_image(path):
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 # Test payload
-url = "https://mood-api-144587330320.us-central1.run.app/analyze/"  # Change to your actual endpoint
+url = "http://localhost:8080/analyze/"  # Change to your actual endpoint
 #"https://mood-api-37578726372.us-west2.run.app/analyze/"
 payload = {
     "image_base64": encode_image("./sadface.png"),  # Replace with your test image
