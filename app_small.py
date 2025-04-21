@@ -52,7 +52,7 @@ def infer_mood_from_color(image):
 def generate_caption_from_pil(image):
     #inputs = processor(image, return_tensors="pt").to(device, torch.float16)
     inputs = processor(image, return_tensors="pt").to(device)
-    out = model.generate(**inputs, max_new_tokens=10)
+    out = model.generate(**inputs, max_new_tokens=5)
     caption = processor.batch_decode(out, skip_special_tokens=True)[0].strip()
     print(f"Generated caption: {caption}")
     return caption
@@ -69,8 +69,11 @@ def detect_mood_from_caption(caption, image):
         mood_text = response.message.content.strip().lower()
         print(f"Response from model: {mood_text}")
         print("Length of mood text:", len(mood_text.split()))
-        if len(mood_text.split()) > 2 or not mood_text.isalpha():
+        if len(mood_text.split()) > 2:
             return infer_mood_from_color(image)
+        for word in mood_text.split():
+            if not word.isalpha():
+                return infer_mood_from_color(image)
         return mood_text
     except Exception as e:
         print(f"Error in mood detection model: {e}")
