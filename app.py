@@ -116,6 +116,5 @@ def analyze_image(req: ImageRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    ollama.set_base_url("http://localhost:11434")
     port = int(os.environ.get("PORT", 8080))  # GCR injects PORT=8080
     uvicorn.run("app:app", host="0.0.0.0", port=port)
