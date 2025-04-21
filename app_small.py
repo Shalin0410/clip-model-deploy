@@ -52,7 +52,7 @@ def infer_mood_from_color(image):
 def generate_caption_from_pil(image):
     #inputs = processor(image, return_tensors="pt").to(device, torch.float16)
     inputs = processor(image, return_tensors="pt").to(device)
-    out = model.generate(**inputs, max_new_tokens=5)
+    out = model.generate(**inputs, max_new_tokens=10)
     caption = processor.batch_decode(out, skip_special_tokens=True)[0].strip()
     print(f"Generated caption: {caption}")
     return caption
