@@ -52,10 +52,15 @@ def infer_mood_from_color(image):
 def generate_caption_from_pil(image):
     #inputs = processor(image, return_tensors="pt").to(device, torch.float16)
     inputs = processor(image, return_tensors="pt").to(device)
-    out = model.generate(**inputs, max_new_tokens=10)
-    caption = processor.batch_decode(out, skip_special_tokens=True)[0].strip()
-    print(f"Generated caption: {caption}")
-    return caption
+    out = model.generate(**inputs, max_new_tokens=20)
+    full_caption = processor.decode(out[0], skip_special_tokens=True).strip()
+    print(f"Generated full caption: {full_caption}")
+    
+    doc = nlp(full_caption)
+    important_words = [token.text for token in doc if not token.is_stop and token.is_alpha]
+    short_caption = " ".join(important_words[:5])
+    print(f"Generated short caption: {short_caption}")
+    return full_caption, short_caption
 
 def detect_mood_from_caption(caption, image):
     prompt = f"""
@@ -91,8 +96,8 @@ def analyze_image(req: ImageRequest):
     try:
         # Decode and process image
         image = base64_to_image(req.image_base64)
-        caption = generate_caption_from_pil(image)
-        mood = detect_mood_from_caption(caption, image)
+        full_caption, small_caption = generate_caption_from_pil(image)
+        mood = detect_mood_from_caption(full_caption, image)
 
         # # Store in MongoDB
         # record = {
@@ -104,7 +109,7 @@ def analyze_image(req: ImageRequest):
         # }
         # users.insert_one(record)
 
-        return {"caption": caption, "mood": mood}
+        return {"caption": small_caption, "mood": mood}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
