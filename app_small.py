@@ -92,9 +92,9 @@ def generate_caption_from_pil(image):
 
 def detect_mood_from_caption(caption, image):
     prompt = f"""
-    You are a mood detection model. Based on the following caption, classify the mood of the image.
+    You are an expert mood detection model. Based on the following caption, analyze the emotional and semantic meaning, and classify the mood of the image. Focus on the underlying context rather than just surface words.
     Caption: "{caption}"
-    Your output should only be one to two words.
+    Respond with only one or two words describing the mood.
     """
     
     try:
