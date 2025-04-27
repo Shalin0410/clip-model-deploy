@@ -20,6 +20,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 print(f"Using device: {device}")
 
+BLOCKED_WORDS = set(["drawing", "painting", "image", "photo", "picture", "of", "sketch", "artwork", "a", "the", "is", "on", "in"])
+
 #valid_moods = ["happy", "sad", "angry", "neutral", "surprised", "confused", "excited", "calm"]
 
 # ----------------- FastAPI Setup -----------------
@@ -71,21 +73,20 @@ def generate_caption_from_pil(image):
     full_caption = processor.decode(out[0], skip_special_tokens=True).strip()
     print(f"Generated full caption: {full_caption}")
     doc = nlp(full_caption)
-    important_words = [token.text for token in doc if not token.is_stop and token.is_alpha]
-    # remove duplicates and words like "a", "the", "is", "drawing", "of", "on", "in"
-    important_words = list(dict.fromkeys(important_words))
-    important_words = [word for word in important_words if word not in ["a", "the", "is", "drawing", "of", "on", "in"]]
-    # Prioritize nouns and adjectives
-    important_words = sorted(important_words, key=lambda x: nlp(x)[0].tag_, reverse=True)
-    ranked_words = [token.text for token in important_words if token.pos_ in ["NOUN", "ADJ"]]
-    # Pass the first word to the model
-    if ranked_words:
-        short_caption = ranked_words[0]
-    elif important_words:
-        short_caption = important_words[0]
+    important_tokens = [token for token in doc if not token.is_stop and token.is_alpha and token.text.lower() not in BLOCKED_WORDS]
+    if not important_tokens:
+        print("Warning: No important words left after filtering. Using fallback word.")
+        short_caption = "fallback"
     else:
-        short_caption = ""
-    #short_caption = " ".join(important_words[:5])
+        # Prefer nouns or adjectives if available
+        ranked_tokens = [token for token in important_tokens if token.pos_ in ["NOUN", "ADJ"]]
+
+        if ranked_tokens:
+            selected_token = ranked_tokens[0]
+        else:
+            selected_token = important_tokens[0]
+
+        short_caption = selected_token.text.lower()
     print(f"Generated short caption: {short_caption}")
     return full_caption, short_caption
 
