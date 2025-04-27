@@ -30,6 +30,21 @@ app = FastAPI()
 # db = client["doodle-dj-db"]
 # users = db["users"]
 
+# ----------------- Warmup Functions -----------------
+def warmup_model():
+    dummy_image = Image.new('RGB', (224, 224), color=(128, 128, 128))
+    inputs = processor(dummy_image, return_tensors="pt").to(device)
+    with torch.no_grad():
+        _ = model.generate(**inputs, max_new_tokens=5)
+    print("BLIP Model Warmed Up")
+
+def warmup_ollama():
+    try:
+        _ = ollama.chat(model="llama3:latest", messages=[{"role": "user", "content": "Hello"}])
+        print("Ollama Model Warmed Up")
+    except Exception as e:
+        print(f"Ollama Warmup Failed: {e}")
+
 # ----------------- Core Logic -----------------
 def base64_to_image(base64_str):
     image_data = base64.b64decode(base64_str)
@@ -55,10 +70,22 @@ def generate_caption_from_pil(image):
     out = model.generate(**inputs, max_new_tokens=20)
     full_caption = processor.decode(out[0], skip_special_tokens=True).strip()
     print(f"Generated full caption: {full_caption}")
-    
     doc = nlp(full_caption)
     important_words = [token.text for token in doc if not token.is_stop and token.is_alpha]
-    short_caption = " ".join(important_words[:5])
+    # remove duplicates and words like "a", "the", "is", "drawing", "of", "on", "in"
+    important_words = list(dict.fromkeys(important_words))
+    important_words = [word for word in important_words if word not in ["a", "the", "is", "drawing", "of", "on", "in"]]
+    # Prioritize nouns and adjectives
+    important_words = sorted(important_words, key=lambda x: nlp(x)[0].tag_, reverse=True)
+    ranked_words = [token.text for token in important_words if token.pos_ in ["NOUN", "ADJ"]]
+    # Pass the first word to the model
+    if ranked_words:
+        short_caption = ranked_words[0]
+    elif important_words:
+        short_caption = important_words[0]
+    else:
+        short_caption = ""
+    #short_caption = " ".join(important_words[:5])
     print(f"Generated short caption: {short_caption}")
     return full_caption, short_caption
 
@@ -115,5 +142,8 @@ def analyze_image(req: ImageRequest):
 
 if __name__ == "__main__":
     import uvicorn
+    
+    # warmup_model()
+    # warmup_ollama()
     port = int(os.environ.get("PORT", 8000))  # GCR injects PORT=8080
     uvicorn.run("app_small:app", host="0.0.0.0", port=port)
