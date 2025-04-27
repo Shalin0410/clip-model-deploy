@@ -82,9 +82,9 @@ def generate_caption_from_pil(image):
         ranked_tokens = [token for token in important_tokens if token.pos_ in ["NOUN", "ADJ"]]
 
         if ranked_tokens:
-            selected_token = ranked_tokens[-1]
+            selected_token = ranked_tokens[0]
         else:
-            selected_token = important_tokens[-1]
+            selected_token = important_tokens[0]
 
         short_caption = selected_token.text.lower()
     print(f"Generated short caption: {short_caption}")
