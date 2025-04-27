@@ -82,9 +82,9 @@ def generate_caption_from_pil(image):
         ranked_tokens = [token for token in important_tokens if token.pos_ in ["NOUN", "ADJ"]]
 
         if ranked_tokens:
-            selected_token = ranked_tokens[0]
+            selected_token = ranked_tokens[-1]
         else:
-            selected_token = important_tokens[0]
+            selected_token = important_tokens[-1]
 
         short_caption = selected_token.text.lower()
     print(f"Generated short caption: {short_caption}")
@@ -102,12 +102,25 @@ def detect_mood_from_caption(caption, image):
         mood_text = response.message.content.strip().lower()
         print(f"Response from model: {mood_text}")
         print("Length of mood text:", len(mood_text.split()))
-        if len(mood_text.split()) > 2:
+        # Remove any non-alphabetic characters from mood_text
+        mood_array = [word for word in mood_text.split() if word.isalpha()]
+        mood_text = ' '.join(mood_array)
+        print("Filtered mood text:", mood_text)
+        # If mood text is empty or contains only non-alphabetic characters, fallback to color analysis
+        if len(mood_text) == 0:
+            print("Mood text is empty or contains only non-alphabetic characters, falling back to color analysis.")
             return infer_mood_from_color(image)
-        for word in mood_text.split():
-            if not word.isalpha():
-                return infer_mood_from_color(image)
-        return mood_text
+        # If mood text is more than 2 words return the first two words
+        elif len(mood_text.split()) == 1:
+            return mood_text
+        elif len(mood_text.split()) == 2:
+            return ' '.join(mood_text.split()[:2])
+        # If mood text is more than 2 words, return the first two words
+        elif len(mood_text.split()) > 2:
+            return ' '.join(mood_text.split()[:2])
+        else:
+            print("Mood text is not valid, falling back to color analysis.")
+            return infer_mood_from_color(image)
     except Exception as e:
         print(f"Error in mood detection model: {e}")
         print("Error in mood detection model, falling back to color analysis.")
